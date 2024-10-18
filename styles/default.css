@@ -1,18 +1,16 @@
 :root {
     color-scheme: light dark;
   
-    --light-bg: white;
-    --light-color: black;
+    --light: white;
     --light-code: tomato;
   
-    --dark-bg: black;
-    --dark-color: white;
+    --dark: black;
     --dark-code: gold;
 }
 
 * {
-    background-color: light-dark(var(--light-bg), var(--dark-bg));
-    color: light-dark(var(--light-color), var(--dark-color));
+    background-color: light-dark(var(--light), var(--dark));
+    color: light-dark(var(--dark), var(--light));
 }
 
 html {
