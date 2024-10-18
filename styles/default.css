@@ -1,3 +1,20 @@
+:root {
+    color-scheme: light dark;
+  
+    --light-bg: white;
+    --light-color: black;
+    --light-code: tomato;
+  
+    --dark-bg: black;
+    --dark-color: white;
+    --dark-code: gold;
+}
+
+* {
+    background-color: light-dark(var(--light-bg), var(--dark-bg));
+    color: light-dark(var(--light-color), var(--dark-color));
+}
+
 html {
     font-family: "Rubik", sans-serif;
     font-optical-sizing: auto;
