@@ -3,9 +3,11 @@
   
     --light: white;
     --light-code: tomato;
+    --light-button: #FFFF00;
   
     --dark: black;
     --dark-code: gold;
+    --dark-button: #FFCE1B;
 }
 
 * {
@@ -26,8 +28,4 @@ html {
 body {
     margin: 0;
     overflow: hidden;
-}
-
-a {
-    text-decoration: none;
 }
