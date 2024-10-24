@@ -1,8 +1,12 @@
 const canvas = document.querySelector('.image-canvas');
 const ctx = canvas.getContext('2d');
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight * 0.9;
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight * 0.9;
+}
+
+resizeCanvas();
 
 let images = [];
 let xOffset = 0;
@@ -11,6 +15,11 @@ let isDragging = false;
 let lastX = 0, lastY = 0;
 let movedDistance = 0;
 const gap = 5;
+let scale = 1;
+let lastScale = 1;
+let pinchDistance = 0;
+const minScale = 0.5;
+const maxScale = 2;
 
 const imageSources = [
     'images/image1.jpg',
@@ -54,14 +63,25 @@ function loadImages(sources) {
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.src = src;
+            img.loading = 'lazy';
             img.onload = () => resolve(img);
             img.onerror = reject;
         });
     }));
 }
 
-function resizeImage(img) {
-    const maxImageWidth = (canvas.width / 7) - gap;
+function getImagesPerRow() {
+    if (window.innerWidth < 325) {
+        return 1;
+    } else if (window.innerWidth >= 325 && window.innerWidth <= 1184) {
+        return 3;
+    } else {
+        return 7;
+    }
+}
+
+function resizeImage(img, imagesPerRow) {
+    const maxImageWidth = (canvas.width / imagesPerRow) - gap;
     const aspectRatio = img.width / img.height;
     const imageWidth = Math.min(maxImageWidth, img.width);
     const imageHeight = imageWidth / aspectRatio;
@@ -78,64 +98,49 @@ function shuffleArray(array) {
     return array;
 }
 
-function categorizeImages(images) {
+function categorizeImages(images, imagesPerRow) {
     const categorizedImages = [];
-
     images.forEach(image => {
-        const { width, height } = resizeImage(image);
+        const { width, height } = resizeImage(image, imagesPerRow);
         categorizedImages.push({ image, width, height });
     });
-
     return categorizedImages;
 }
 
 function calculateImagePositions() {
     imagePositions = [];
-
-    const imagesPerRow = 7;
+    const imagesPerRow = getImagesPerRow();
     const gap = 10;
-    const categorizedImages = categorizeImages(images);
-
+    const categorizedImages = categorizeImages(images, imagesPerRow);
     const shuffledImages = shuffleArray(categorizedImages);
-
     let columnHeights = Array(imagesPerRow).fill(gap);
 
     for (let i = 0; i < shuffledImages.length; i++) {
         const { image, width, height } = shuffledImages[i];
-
         const col = i % imagesPerRow;
-
         const x = col * (width + gap) + gap;
-
         const y = columnHeights[col];
-
-        imagePositions.push({
-            x: x,
-            y: y,
-            width: width,
-            height: height,
-            img: image
-        });
-
+        imagePositions.push({ x: x, y: y, width: width, height: height, img: image });
         columnHeights[col] += height + gap;
     }
 }
 
 function drawImages() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    ctx.save();
+    ctx.scale(scale, scale);
     imagePositions.forEach((pos) => {
         const { x, y, width, height, img } = pos;
-        ctx.drawImage(img, x + xOffset, y + yOffset, width, height);
+        ctx.drawImage(img, (x + xOffset) / scale, (y + yOffset) / scale, width, height);
     });
+    ctx.restore();
 }
 
 canvas.addEventListener('click', function(event) {
     if (movedDistance < 5) {
         const canvasRect = canvas.getBoundingClientRect();
-        const clickX = event.clientX - canvasRect.left - xOffset;
-        const clickY = event.clientY - canvasRect.top - yOffset;
-
+        const clickX = (event.clientX - canvasRect.left - xOffset) / scale;
+        const clickY = (event.clientY - canvasRect.top - yOffset) / scale;
         imagePositions.forEach((pos, index) => {
             if (clickX >= pos.x && clickX <= pos.x + pos.width &&
                 clickY >= pos.y && clickY <= pos.y + pos.height) {
@@ -156,41 +161,83 @@ canvas.addEventListener('mousedown', (event) => {
 canvas.addEventListener('mousemove', (event) => {
     if (isDragging) {
         const dx = event.clientX - lastX;
-        const dy = event.clientY - lastY
-                xOffset += dx;
-                yOffset += dy;
-        
-                lastX = event.clientX;
-                lastY = event.clientY;
-        
-                movedDistance += Math.sqrt(dx * dx + dy * dy);
-                
-                drawImages();
-            }
-        });
-        
-        canvas.addEventListener('mouseup', () => {
-            isDragging = false;
-            canvas.style.cursor = 'grab';
-        });
-        
-        canvas.addEventListener('mouseleave', () => {
-            isDragging = false;
-            canvas.style.cursor = 'grab';
-        });
-        
-        loadImages(imageSources).then(loadedImages => {
-            images = loadedImages;
-            calculateImagePositions();
-            drawImages();
-        }).catch(error => {
-            console.error("Error loading images: ", error);
-        });
-        
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight * 0.9;
-            calculateImagePositions();
-            drawImages();
-        });
-  
+        const dy = event.clientY - lastY;
+        xOffset += dx;
+        yOffset += dy;
+        lastX = event.clientX;
+        lastY = event.clientY;
+        movedDistance += Math.sqrt(dx * dx + dy * dy);
+        drawImages();
+    }
+});
+
+canvas.addEventListener('mouseup', () => {
+    isDragging = false;
+    canvas.style.cursor = 'grab';
+});
+
+canvas.addEventListener('mouseleave', () => {
+    isDragging = false;
+    canvas.style.cursor = 'grab';
+});
+
+function getDistance(touch1, touch2) {
+    return Math.sqrt((touch2.clientX - touch1.clientX) ** 2 + (touch2.clientY - touch1.clientY) ** 2);
+}
+
+canvas.addEventListener('touchstart', (event) => {
+    if (event.touches.length === 2) {
+        pinchDistance = getDistance(event.touches[0], event.touches[1]);
+        lastScale = scale;
+    } else if (event.touches.length === 1) {
+        isDragging = true;
+        lastX = event.touches[0].clientX;
+        lastY = event.touches[0].clientY;
+        movedDistance = 0;
+        canvas.style.cursor = 'grabbing';
+    }
+});
+
+canvas.addEventListener('touchmove', (event) => {
+    if (event.touches.length === 2) {
+        const newPinchDistance = getDistance(event.touches[0], event.touches[1]);
+        scale = lastScale * (newPinchDistance / pinchDistance);
+
+        scale = Math.min(Math.max(scale, minScale), maxScale);
+
+        drawImages();
+    } else if (event.touches.length === 1 && isDragging) {
+        const dx = event.touches[0].clientX - lastX;
+        const dy = event.touches[0].clientY - lastY;
+        xOffset += dx;
+        yOffset += dy;
+        lastX = event.touches[0].clientX;
+        lastY = event.touches[0].clientY;
+        movedDistance += Math.sqrt(dx * dx + dy * dy);
+        drawImages();
+    }
+});
+
+canvas.addEventListener('touchend', () => {
+    isDragging = false;
+    canvas.style.cursor = 'grab';
+});
+
+canvas.addEventListener('touchcancel', () => {
+    isDragging = false;
+    canvas.style.cursor = 'grab';
+});
+
+loadImages(imageSources).then(loadedImages => {
+    images = loadedImages;
+    calculateImagePositions();
+    drawImages();
+}).catch(error => {
+    console.error("Error loading images: ", error);
+});
+
+window.addEventListener('resize', () => {
+    resizeCanvas();
+    calculateImagePositions();
+    drawImages();
+});
