@@ -1,5 +1,5 @@
 header {
-    height: 6vh;
+    height: 10vh;
     font-size: 16px;
     font-weight: 500;
     text-transform: uppercase;
@@ -54,4 +54,10 @@ header {
     align-items: center;
     border: 2px solid;
     border-color: light-dark(var(--dark), var(--light));
+}
+
+.image-canvas {
+    width: 100vw;
+    height: 90vh;
+    cursor: grab;
 }
