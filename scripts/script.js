@@ -193,3 +193,4 @@ canvas.addEventListener('mousemove', (event) => {
             calculateImagePositions();
             drawImages();
         });
+  
